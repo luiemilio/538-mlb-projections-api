@@ -1,11 +1,17 @@
 {
-    "name": "playground",
+    "name": "538-mlb-projections-api",
     "version": "0.0.1",
     "description": "",
+    "main": "./dist/cjs/index.js",
+    "module": "./dist/esm/index.js",
+    "files": [
+        "dist/"
+    ],
     "scripts": {
-        "build": "tsc",
-        "watch": "tsc --watch",
-        "start": "node dist/index.js",
+        "build": "tsc -p tsconfig.json && tsc -p tsconfig-cjs.json",
+        "watch": "tsc -p tsconfig-cjs.json --watch",
+        "prepublishOnly": "npm run build",
+        "start": "node dist/cjs/index.js",
         "lint": "eslint --ignore-path .eslintignore --ext .js,.ts .",
         "format": "prettier --ignore-path .gitignore --write \"**/*.+(js|ts|json)\""
     },
@@ -17,6 +23,7 @@
     "author": "",
     "license": "ISC",
     "dependencies": {
+        "csvtojson": "^2.0.10",
         "typescript": "^5.0.4"
     },
     "devDependencies": {
