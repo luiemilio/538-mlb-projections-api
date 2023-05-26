@@ -1,50 +1,17 @@
-import { CSV } from './constants';
 import csvtojson from 'csvtojson';
 import * as https from 'node:https';
 import { promises as fsPromises, existsSync } from 'node:fs';
 import * as path from 'node:path';
-import { convertDate } from './utils';
+import { normalize538DateString } from './utils';
+import type { AllGameData, Sport } from './types';
 
-type DataType = 'latest' | 'historical';
-
-export type GameDataInfo = {
-    date: string;
-    season: string;
-    neutral: string;
-    playoff: string;
-    team1: string;
-    team2: string;
-    elo1_pre: string;
-    elo2_pre: string;
-    elo_prob1: string;
-    elo_prob2: string;
-    elo1_post: string;
-    elo2_post: string;
-    rating1_pre: string;
-    rating2_pre: string;
-    pitcher1: string;
-    pitcher2: string;
-    pitcher1_rgs: string;
-    pitcher2_rgs: string;
-    pitcher1_adj: string;
-    pitcher2_adj: string;
-    rating_prob1: string;
-    rating_prob2: string;
-    rating1_post: string;
-    rating2_post: string;
-    score1: string;
-    score2: string;
-};
-
-export type AllGameData = { [key: string]: GameDataInfo[] }; 
-
-class GameData {
-    private dataPromise: Promise<AllGameData>;
+export class GameData {
+    private dataPromise: Promise<AllGameData<Sport>>;
     private url: string;
     private filePath: string;
 
-    constructor(type: DataType) {
-        this.url = type === 'historical' ? CSV.historical : CSV.latest;
+    constructor(url: string) {
+        this.url = url;
         this.filePath = this.getFilenameFromUrl(this.url);
         this.dataPromise = this.getData();
     }
@@ -84,16 +51,51 @@ class GameData {
         return currentDate > compareDate;
     };
 
-    private parseCsvData = async (filePath: string): Promise<AllGameData> => {
-        const gameObj: AllGameData = {};
+    private parseCsvData = async (filePath: string): Promise<AllGameData<Sport>> => {
+        const gameObj: AllGameData<Sport> = {};
+
+        const parserOptions = {
+            trim: true,
+            ...(this.url.includes('nba') && {
+                headers: [
+                    'date',
+                    'season',
+                    'neutral',
+                    'playoff',
+                    'team1',
+                    'team2',
+                    'elo1_pre',
+                    'elo2_pre',
+                    'elo_prob1',
+                    'elo_prob2',
+                    'elo1_post',
+                    'elo2_post',
+                    'carmElo1Pre',
+                    'carmElo2Pre',
+                    'carmEloProb1',
+                    'carmEloProb2',
+                    'carmElo1Post',
+                    'carmElo2Post',
+                    'raptor1_pre',
+                    'raptor2_pre',
+                    'raptor_prob1',
+                    'raptor_prob2',
+                    'score1',
+                    'score2',
+                    'quality',
+                    'importance',
+                    'total_rating'
+                ]
+            })
+        };
 
         await new Promise((resolve, reject) => {
-            csvtojson({ trim: true })
+            csvtojson(parserOptions)
                 .fromFile(filePath)
                 .on('data', (data) => {
                     const parsedData = JSON.parse(data.toString('utf8'));
                     const { date } = parsedData;
-                    const convertedDate = convertDate(date);
+                    const convertedDate = normalize538DateString(date);
 
                     const gameDate = gameObj[convertedDate];
 
@@ -110,7 +112,7 @@ class GameData {
         return gameObj;
     };
 
-    private getData = async (): Promise<AllGameData> => {
+    private getData = async (): Promise<AllGameData<Sport>> => {
         if (!existsSync(this.filePath) || (existsSync(this.filePath) && (await this.staleFile(this.filePath)))) {
             await this.fetchFile(this.url, this.filePath);
         }
@@ -118,10 +120,7 @@ class GameData {
         return this.parseCsvData(this.filePath);
     };
 
-    public get data(): Promise<AllGameData> {
+    public get data(): Promise<AllGameData<Sport>> {
         return this.dataPromise;
     }
 }
-
-export const latestGameData = new GameData('latest').data;
-export const historicalGameData = new GameData('historical').data;
