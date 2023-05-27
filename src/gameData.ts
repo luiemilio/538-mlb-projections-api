@@ -12,7 +12,7 @@ export class GameData {
 
     constructor(url: string) {
         this.url = url;
-        this.filePath = this.getFilenameFromUrl(this.url);
+        this.filePath = path.resolve(__dirname, this.getFilenameFromUrl(url));
         this.dataPromise = this.getData();
     }
 
